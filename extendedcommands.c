@@ -81,10 +81,10 @@ int install_zip(const char* packagefilepath)
     return 0;
 }
 
-char* INSTALL_MENU_ITEMS[] = {  "choose zip from external sdcard",
-                                "choose zip from internal sdcard",
-                                "apply /sdcard/update.zip (external)",
-                                "apply /emmc/update.zip (internal)",
+char* INSTALL_MENU_ITEMS[] = {  "choose zip from internal sdcard", //swaped 
+                                "choose zip from external sdcard", //swaped
+                                "apply /sdcard/update.zip (internal)", //swapped
+                                "apply /emmc/update.zip (external)",  //swapped
                                 "toggle signature verification",
                                 "toggle script asserts",
                                 NULL };
@@ -921,8 +921,8 @@ void show_advanced_menu()
                             "Report Error",
                             "Key Test",
                             "Show log",
-                            "Partition External SD Card",
-                            "Partition Internal SD Card",
+                            "Partition Internal SD Card", //swapped
+                            "Partition EXternal SD Card", //swapped
                             "Fix Permissions",
                             NULL
     };
