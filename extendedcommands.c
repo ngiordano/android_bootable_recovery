@@ -81,10 +81,10 @@ int install_zip(const char* packagefilepath)
     return 0;
 }
 
-char* INSTALL_MENU_ITEMS[] = {  "choose zip from internal sdcard", //swaped 
-                                "choose zip from external sdcard", //swaped
-                                "apply /sdcard/update.zip (internal)", //swapped
-                                "apply /emmc/update.zip (external)",  //swapped
+char* INSTALL_MENU_ITEMS[] = {  "choose zip from internal sdcard",
+                                "choose zip from external sdcard",
+                                "apply /sdcard/update.zip (internal)",
+                                "apply /emmc/update.zip (external)",
                                 "toggle signature verification",
                                 "toggle script asserts",
                                 NULL };
@@ -373,7 +373,7 @@ void show_nandroid_restore_menu(const char* path)
 void show_mount_usb_storage_menu()
 {
     int fd;
-    Volume *vol = volume_for_path("/emmc");
+    Volume *vol = volume_for_path("/sdcard");
     if ((fd = open(BOARD_UMS_LUNFILE, O_WRONLY)) < 0) {
         LOGE("Unable to open ums lunfile (%s)", strerror(errno));
         return -1;
@@ -414,6 +414,49 @@ void show_mount_usb_storage_menu()
     }
 }
 
+void show_mount_external_storage_menu()
+{
+    int fd;
+    Volume *vol = volume_for_path("/emmc");
+    if ((fd = open(BOARD_UMS_LUNFILE, O_WRONLY)) < 0) {
+        LOGE("Unable to open ums lunfile (%s)", strerror(errno));
+        return -1;
+    }
+
+    if ((write(fd, vol->device, strlen(vol->device)) < 0) &&
+        (!vol->device2 || (write(fd, vol->device, strlen(vol->device2)) < 0))) {
+        LOGE("Unable to write to ums lunfile (%s)", strerror(errno));
+        close(fd);
+        return -1;
+    }
+    static char* headers[] = {  "USB Mass Storage device",
+                                "Leaving this menu unmount",
+                                "your SD card from your PC.",
+                                "",
+                                NULL
+    };
+
+    static char* list[] = { "Unmount", NULL };
+
+    for (;;)
+    {
+        int chosen_item = get_menu_selection(headers, list, 0, 0);
+        if (chosen_item == GO_BACK || chosen_item == 0)
+            break;
+    }
+
+    if ((fd = open(BOARD_UMS_LUNFILE, O_WRONLY)) < 0) {
+        LOGE("Unable to open ums lunfile (%s)", strerror(errno));
+        return -1;
+    }
+
+    char ch = 0;
+    if (write(fd, &ch, 1) < 0) {
+        LOGE("Unable to write to ums lunfile (%s)", strerror(errno));
+        close(fd);
+        return -1;
+    }
+}
 int confirm_selection(const char* title, const char* confirm)
 {
     struct stat info;
@@ -718,6 +761,9 @@ void show_partition_menu()
         if (chosen_item == (mountable_volumes+formatable_volumes)) {
             show_mount_usb_storage_menu();
         }
+		else if (chosen_item == (mountable_volumes + formatable_volumes + 1)) {
+			show_mount_external_storage_menu();
+		}
         else if (chosen_item < mountable_volumes) {
 			      MountMenuEntry* e = &mount_menue[chosen_item];
             Volume* v = e->v;
@@ -835,12 +881,12 @@ void show_nandroid_menu()
                                 NULL
     };
 
-    static char* list[] = { "backup to internal sdcard",
-                            "restore from internal sdcard",
-                            "advanced restore from internal sdcard",
-                            "backup to external sdcard",
+    static char* list[] = { "backup to external sdcard",
                             "restore from external sdcard",
                             "advanced restore from external sdcard",
+                            "backup to internal sdcard",
+                            "restore from internal sdcard",
+                            "advanced restore from internal sdcard",
                             NULL
     };
 
@@ -916,14 +962,17 @@ void show_advanced_menu()
                                 NULL
     };
 
-    static char* list[] = { "Wipe Dalvik Cache",
+    static char* list[] = { "Reboot Recovery",
+							"Wipe Dalvik Cache",
                             "Wipe Battery Stats",
                             "Report Error",
                             "Key Test",
                             "Show log",
-                            "Partition Internal SD Card", //swapped
-                            "Partition EXternal SD Card", //swapped
+                            "Partition Internal SD Card",
+                            "Partition External SD Card",
                             "Fix Permissions",
+							"Clear init.d directory",
+							"Clear NSTools settings",
                             NULL
     };
 
@@ -935,6 +984,11 @@ void show_advanced_menu()
         switch (chosen_item)
         {
             case 0:
+            {
+                android_reboot(ANDROID_RB_RESTART2, 0, "recovery");
+                break;
+            }
+            case 1:
             {
                 if (0 != ensure_path_mounted("/data"))
                     break;
@@ -949,16 +1003,16 @@ void show_advanced_menu()
                 ensure_path_unmounted("/data");
                 break;
             }
-            case 1:
+            case 2:
             {
                 if (confirm_selection( "Confirm wipe?", "Yes - Wipe Battery Stats"))
                     wipe_battery_stats();
                 break;
             }
-            case 2:
+            case 3:
                 handle_failure(1);
                 break;
-            case 3:
+            case 4:
             {
                 ui_print("Outputting key codes.\n");
                 ui_print("Go back to end debugging.\n");
@@ -973,12 +1027,12 @@ void show_advanced_menu()
                 while (action != GO_BACK);
                 break;
             }
-            case 4:
+            case 5:
             {
                 ui_printlogtail(12);
                 break;
             }
-            case 5:
+            case 6:
             {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
@@ -1014,14 +1068,14 @@ void show_advanced_menu()
                 char cmd[PATH_MAX];
                 setenv("SDPATH", sddevice, 1);
                 sprintf(cmd, "sdparted -es %s -ss %s -efs ext3 -s", ext_sizes[ext_size], swap_sizes[swap_size]);
-                ui_print("Partitioning External SD Card... please wait...\n");
+                ui_print("Partitioning Internal SD Card... please wait...\n");
                 if (0 == __system(cmd))
                     ui_print("Done!\n");
                 else
-                    ui_print("An error occured while partitioning your External SD Card. Please see /tmp/recovery.log for more details.\n");
+                    ui_print("An error occured while partitioning your Internal SD Card. Please see /tmp/recovery.log for more details.\n");
                 break;
             }
-            case 6:
+            case 7:
             {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
@@ -1061,14 +1115,14 @@ void show_advanced_menu()
                 char cmd[PATH_MAX];
                 setenv("SDPATH", sddevice, 1);
                 sprintf(cmd, "sdparted -es %s -ss %s -efs ext3 -s", ext_sizes[ext_size], swap_sizes[swap_size]);
-                ui_print("Partitioning Internal SD Card... please wait...\n");
+                ui_print("Partitioning External SD Card... please wait...\n");
                 if (0 == __system(cmd))
                     ui_print("Done!\n");
                 else
-                    ui_print("An error occured while partitioning your Internal SD Card. Please see /tmp/recovery.log for more details.\n");
+                    ui_print("An error occured while partitioning your External SD Card. Please see /tmp/recovery.log for more details.\n");
                 break;
             }
-            case 7:
+            case 8:
             {
                 ensure_path_mounted("/system");
                 ensure_path_mounted("/data");
@@ -1077,6 +1131,30 @@ void show_advanced_menu()
                 ui_print("Done!\n");
                 break;
             }
+			case 9:
+            {
+                if (confirm_selection( "Confirm clearing?", "Yes - Clear init.d")) 
+				{
+					ensure_path_mounted("/system");
+					ui_print("Clearing init.d...\n");
+					__system("rm -r /system/etc/init.d/*");
+					ui_print("Done!\n");
+				}
+                break;
+            }            
+            case 10:
+            {
+                if (confirm_selection( "Confirm clearing?", "Yes - Clear NSTools settings")) 
+				{
+					ensure_path_mounted("/data");
+					ensure_path_mounted("/datadata");
+					ui_print("Clearing NSTools settings...\n");
+					__system("rm /data/data/mobi.cyann.nstools/shared_prefs/mobi.cyann.nstools_preferences.xml");
+					__system("rm /datadata/mobi.cyann.nstools/shared_prefs/mobi.cyann.nstools_preferences.xml");
+					ui_print("Done!\n");
+				}
+                break;
+            }       
         }
     }
 }
