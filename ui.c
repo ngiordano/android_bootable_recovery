@@ -48,11 +48,11 @@ static int gShowBackButton = 0;
 #define MENU_MAX_ROWS 250
 
 //#if defined(BOARD_HDPI_RECOVERY)
-//  #define CHAR_WIDTH 15
-// #define CHAR_HEIGHT 36
+//  #define CHAR_WIDTH 10
+// #define CHAR_HEIGHT 18
 //#else
-#define CHAR_WIDTH 15
-#define CHAR_HEIGHT 36
+#define CHAR_WIDTH 10
+#define CHAR_HEIGHT 18
 //#endif
 
 
@@ -244,6 +244,7 @@ static void draw_text_line(int row, const char* t, int align) {
         }
         gr_text(col, (row+1)*CHAR_HEIGHT-1, t);
     }
+
 }
 
 //#define MENU_TEXT_COLOR 255, 0, 0, 255 //red
@@ -266,7 +267,7 @@ static void draw_screen_locked(void)
     draw_progress_locked();
 
     if (show_text) {
-        gr_color(0, 0, 0, 160);
+        gr_color(0, 0, 0, 40); //Slight bg fade	//160
         gr_fill(0, 0, gr_fb_width(), gr_fb_height());
 
         gr_surface surface = gVirtualKeys;
@@ -276,6 +277,7 @@ static void draw_screen_locked(void)
         int offset = 0;         // offset of separating bar under menus
         int row = 0;            // current row that we are drawing on
         if (show_menu) {
+
             gr_color(MENU_TEXT_COLOR);
             int batt_level = 0;
             batt_level = get_batt_stats();
@@ -286,9 +288,10 @@ static void draw_screen_locked(void)
             sprintf(batt_text, "[%d%%]", batt_level);
             draw_text_line(0, batt_text, RIGHT_ALIGN);
 
-            gr_color(MENU_TEXT_COLOR);
+			//Remove red highlight on selected
+            /*gr_color(MENU_TEXT_COLOR);
             gr_fill(0, (menu_top + menu_sel - menu_show_start) * CHAR_HEIGHT,
-                    gr_fb_width(), (menu_top + menu_sel - menu_show_start + 1)*CHAR_HEIGHT+1);
+                    gr_fb_width(), (menu_top + menu_sel - menu_show_start + 1)*CHAR_HEIGHT+1);*/
 
             gr_color(HEADER_TEXT_COLOR);
             for (i = 0; i < menu_top; ++i) {
@@ -414,7 +417,7 @@ static void *progress_thread(void *cookie)
 }
 
 //kanged this vibrate stuff from teamwin (thanks guys!)
-#define VIBRATOR_TIME_MS        20
+#define VIBRATOR_TIME_MS        10
 
 static int rel_sum = 0;
 static int in_touch = 0; //1 = in a touch
@@ -474,12 +477,12 @@ static int input_callback(int fd, short revents, void *data)
         rel_sum = 0;
     }
 
-    if (ev.type == 3 && ev.code == 48 && ev.value != 0) {
+    if (ev.type == 3 && ev.code == 57 && ev.value != -1) {
         if (in_touch == 0) {
             in_touch = 1; //starting to track touch...
             reset_gestures();
         }
-    } else if (ev.type == 3 && ev.code == 48 && ev.value == 0) {
+    } else if (ev.type == 3 && ev.code == 57 && ev.value == -1) {
             //finger lifted! lets run with this
             ev.type = EV_KEY; //touch panel support!!!
             int keywidth = gr_get_width(surface) / 4;
@@ -541,11 +544,11 @@ static int input_callback(int fd, short revents, void *data)
             diff_y += touch_y - old_y;
 
    if(touch_y < (gr_fb_height() - gr_get_height(surface))) {
-            if (diff_y > 25) {
+            if (diff_y > 40) {
                 ev.code = KEY_DOWN;
                 ev.type = EV_KEY;
                 reset_gestures();
-	 } else if (diff_y < -25) {
+	 } else if (diff_y < -40) {
                 ev.code = KEY_UP;
                 ev.type = EV_KEY;
                 reset_gestures();
